@@ -1,20 +1,16 @@
+require 'pry'
+
 class Student
   attr_accessor :id, :name, :grade
 
-  def self.new_from_db(row)
-    # create a new Student object given a row from the database
+  # INSTANCE METHODS ********************************************
+
+  def initialize(attributes = {})
+    @id = attributes[:id]
+    @name = attributes[:name]
+    @grade = attributes[:grade]
   end
 
-  def self.all
-    # retrieve all the rows from the "Students" database
-    # remember each row should be a new instance of the Student class
-  end
-
-  def self.find_by_name(name)
-    # find the student in the database given a name
-    # return a new instance of the Student class
-  end
-  
   def save
     sql = <<-SQL
       INSERT INTO students (name, grade) 
@@ -22,6 +18,44 @@ class Student
     SQL
 
     DB[:conn].execute(sql, self.name, self.grade)
+  end
+
+  # CLASS METHODS ********************************************
+
+  def self.all
+    Student.instantiate(DB[:conn].execute("SELECT * FROM students"))
+  end
+
+  def self.new_from_db(row)
+    Student.new({ :id => row[0], :name => row[1], :grade => row[2] })
+  end
+
+  def self.find_by_name(name)
+    sql = <<-SQL
+      SELECT * FROM students WHERE name = ?
+    SQL
+
+    Student.instantiate(DB[:conn].execute(sql, name)).first
+  end
+
+  def self.all_students_in_grade_9
+    Student.instantiate(DB[:conn].execute("SELECT * FROM students WHERE grade = 9;"))
+  end
+
+  def self.students_below_12th_grade
+    Student.instantiate(DB[:conn].execute("SELECT * FROM students WHERE grade < 12;"))
+  end
+
+  def self.first_X_students_in_grade_10(limit)
+    Student.instantiate(DB[:conn].execute("SELECT * FROM students WHERE grade = 10 LIMIT #{limit};"))
+  end
+
+  def self.first_student_in_grade_10
+    Student.instantiate(DB[:conn].execute("SELECT * FROM students WHERE grade = 10;")).first
+  end
+
+  def self.all_students_in_grade_X(grade)
+    Student.instantiate(DB[:conn].execute("SELECT * FROM students WHERE grade = #{grade};"))
   end
   
   def self.create_table
@@ -39,5 +73,13 @@ class Student
   def self.drop_table
     sql = "DROP TABLE IF EXISTS students"
     DB[:conn].execute(sql)
+  end
+
+  # PRIVATE METHODS ********************************************
+
+  private
+
+  def self.instantiate(db_rows)
+    db_rows.map { |db_row| Student.new_from_db(db_row) }
   end
 end
